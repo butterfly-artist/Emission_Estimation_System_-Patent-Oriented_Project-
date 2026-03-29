@@ -68,8 +68,8 @@ def generate_synthetic_data(
     # 5. CONVERSION FACTORS
     c0_true = np.ones(100)
     c0_wrong = np.ones(100)
-    c0_wrong[industrial_idx] = 0.70
-    c0_wrong[road_idx] = 1.40
+    c0_wrong[industrial_idx] = 0.50
+    c0_wrong[road_idx] = 1.60
     c0_wrong[residential_idx] = 0.90
     
     # 6. PRIOR x0

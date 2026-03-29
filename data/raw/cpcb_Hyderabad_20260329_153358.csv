@@ -1,0 +1,14 @@
+country,state,city,station_name,timestamp,lat,lon,pollutant,min_value,max_value,value,fetch_time
+India,Telangana,Hyderabad,"IITH Kandi, Hyderabad - TSPCB",29-03-2026 13:00:00,17.585705,78.126199,NO2,16,16,16,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"ICRISAT Patancheru, Hyderabad - TSPCB",29-03-2026 13:00:00,17.5184,78.278777,NO2,6,17,11,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"Kompally Municipal Office, Hyderabad - TSPCB",29-03-2026 13:00:00,17.544899,78.486949,NO2,12,14,14,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"Zoo Park, Hyderabad - TSPCB",29-03-2026 13:00:00,17.349694,78.451437,NO2,1,8,6,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"Central University, Hyderabad - TSPCB",29-03-2026 13:00:00,17.460103,78.334361,NO2,14,53,33,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"New Malakpet, Hyderabad - TSPCB",29-03-2026 13:00:00,17.37206,78.50864,NO2,15,19,19,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"Ramachandrapuram, Hyderabad - TSPCB",29-03-2026 13:00:00,17.528544,78.286195,NO2,12,18,14,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"IDA Pashamylaram, Hyderabad - TSPCB",29-03-2026 13:00:00,17.5316895,78.218939,NO2,5,7,6,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"Kokapet, Hyderabad - TSPCB",29-03-2026 13:00:00,17.393559,78.339194,NO2,12,17,14,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"ECIL Kapra, Hyderabad - TSPCB",29-03-2026 13:00:00,17.470431,78.566959,NO2,11,55,33,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"Somajiguda, Hyderabad - TSPCB",29-03-2026 13:00:00,17.417094,78.457437,NO2,15,25,22,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"Nacharam_TSIIC IALA, Hyderabad - TSPCB",29-03-2026 13:00:00,17.429398,78.569354,NO2,20,21,20,2026-03-29T15:33:58.387974
+India,Telangana,Hyderabad,"Sanathnagar, Hyderabad - TSPCB",29-03-2026 13:00:00,17.4559458,78.4332152,NO2,7,39,22,2026-03-29T15:33:58.387974
