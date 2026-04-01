@@ -13,11 +13,11 @@ def adaptive_loop(
     c0: np.ndarray = None,
     lam: float = 0.01,
     gamma: float = 0.01,
-    eta: float = 0.1,
+    eta: float = 0.2,
     alpha: float = 0.3,
     max_iter: int = 25,
-    eps: float = 1e-5,
-    fd_eps: float = 1e-4
+    eps: float = 1e-3,
+    fd_eps: float = 1e-2
 ) -> dict:
     
     # STEP 0 — INITIALIZATION
@@ -27,9 +27,9 @@ def adaptive_loop(
     theta = np.zeros(H.shape[1])
     theta_prev = np.zeros(H.shape[1])
     
-    def theta_to_c(t):
-        c = c0 * np.exp(t)
-        return c / c.max()
+    def theta_to_c(theta):
+        c = c0 * np.exp(theta)
+        return c
         
     losses = []
     correlations = []
@@ -60,6 +60,13 @@ def adaptive_loop(
         loss = weighted_residual_loss(r, R_i)
         losses.append(loss)
         all_residuals.append(r.copy())
+        
+        if k > 2 and losses[-1] > losses[-3]:
+            logger.info(
+                f"Loss increasing at iter {k}, "
+                f"reducing eta"
+            )
+            eta = eta * 0.5
         
         # F. FINITE DIFFERENCE GRADIENT
         grad = np.zeros_like(theta)
@@ -126,10 +133,11 @@ if __name__ == "__main__":
         data['x0'],
         c0=data['c0_wrong'],
         lam=0.01,
-        gamma=0.01,
-        eta=0.1,
+        gamma=0.005,
+        eta=0.2,
         alpha=0.3,
-        max_iter=25
+        max_iter=25,
+        fd_eps=1e-2
     )
     
     corr_static = compute_correlation(result['x_static'], data['x_true'])
