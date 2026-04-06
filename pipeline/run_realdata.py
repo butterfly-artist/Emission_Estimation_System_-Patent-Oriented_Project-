@@ -326,18 +326,14 @@ if __name__ == "__main__":
     print("Hyderabad NO2 — CPCB data.gov.in")
     print("="*60)
     
-    if API_KEY == "579b464db66ec23bdd0000019f264217b1eb456c76a616628cc180b9":
-        print("Replace API_KEY with your key")
-        print("in pipeline/run_realdata.py")
-    else:
-        result = run_realdata_pipeline(
-            api_key=API_KEY,
-            resource_id=RESOURCE_ID,
-            params=CANONICAL_PARAMS,
-            n_trials=30
-        )
-        
-        if result:
-            if result['S_mean'] > 1.0:
-                print("\nREADY FOR DASHBOARD")
-                print("Session 11: dashboard/app.py")
+    result = run_realdata_pipeline(
+        api_key=API_KEY,
+        resource_id=RESOURCE_ID,
+        params=CANONICAL_PARAMS,
+        n_trials=30
+    )
+    
+    if result:
+        if result['S_mean'] > 1.0:
+            print("\nREADY FOR DASHBOARD")
+            print("Session 11: dashboard/app.py")

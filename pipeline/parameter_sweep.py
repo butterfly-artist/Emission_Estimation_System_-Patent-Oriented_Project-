@@ -49,12 +49,12 @@ def diagnose_leverage(
     print("Fix: increase mismatch in synthetic.py")
 
 def evaluate_combination(params):
-    eta, alpha, gamma, lam, noise, fd_eps, n_trials = params
+    eta, alpha, gamma, lam, noise, n_trials = params
     data = generate_synthetic_data(noise_std=noise, random_seed=42)
     r = random_dropout_comparison(
         data['H'], data['y'], data['x0'], data['x_true'], data['c0_wrong'],
         dropout_frac=0.30, n_trials=n_trials, lam=lam, gamma=gamma,
-        eta=eta, alpha=alpha, max_iter=20, random_seed=0, fd_eps=fd_eps
+        eta=eta, alpha=alpha, max_iter=20, random_seed=0
     )
     return {
         'eta': eta,
@@ -62,7 +62,6 @@ def evaluate_combination(params):
         'gamma': gamma,
         'lam': lam,
         'noise': noise,
-        'fd_eps': fd_eps,
         'S_mean': r['S_mean'],
         'S_min': r['S_min'],
         'S_max': r['S_max'],
@@ -81,16 +80,15 @@ def run_parameter_sweep(
     gamma_values  = [0.001, 0.005, 0.01, 0.05]
     lam_values    = [0.001, 0.01, 0.05, 0.1]
     noise_values  = [0.01, 0.05]
-    fd_eps_values = [0.01, 0.05, 0.1]
-    
+
     results_list = []
     best_S = 0.0
     best_config = {}
-    
-    combos = list(itertools.product(eta_values, alpha_values, gamma_values, lam_values, noise_values, fd_eps_values))
+
+    combos = list(itertools.product(eta_values, alpha_values, gamma_values, lam_values, noise_values))
     total = len(combos)
-    
-    tasks = [(eta, alpha, gamma, lam, noise, fd_eps, n_trials) for eta, alpha, gamma, lam, noise, fd_eps in combos]
+
+    tasks = [(eta, alpha, gamma, lam, noise, n_trials) for eta, alpha, gamma, lam, noise in combos]
     
     logger.info(f"Starting ProcessPoolExecutor with {total} combinations...")
     
@@ -107,7 +105,7 @@ def run_parameter_sweep(
             if row['S_mean'] > best_S:
                 best_S = row['S_mean']
                 best_config = row.copy()
-                logger.info(f"NEW BEST S={best_S:.4f} | eta={row['eta']} alpha={row['alpha']} gamma={row['gamma']} lam={row['lam']} fd_eps={row['fd_eps']}")
+                logger.info(f"NEW BEST S={best_S:.4f} | eta={row['eta']} alpha={row['alpha']} gamma={row['gamma']} lam={row['lam']}")
                 
             if combo_count % 50 == 0:
                 logger.info(f"Progress: {combo_count}/{total} combos | best S={best_S:.4f}")
@@ -123,11 +121,11 @@ def run_parameter_sweep(
     
     sorted_results = sorted(results_list, key=lambda x: x['S_mean'], reverse=True)[:10]
     
-    print("\n" + "="*70)
+    print("\n" + "="*65)
     print("TOP 10 CONFIGURATIONS BY S_mean")
-    print("="*70)
-    print(f"{'eta':>6} {'alpha':>6} {'gamma':>7} {'lam':>6} {'noise':>6} {'fd_eps':>6} {'S_mean':>7} {'S_min':>7} {'pass%':>6}")
-    print("-" * 70)
+    print("="*65)
+    print(f"{'eta':>6} {'alpha':>6} {'gamma':>7} {'lam':>6} {'noise':>6} {'S_mean':>7} {'S_min':>7} {'pass%':>6}")
+    print("-" * 65)
     for r in sorted_results:
         print(
             f"{r['eta']:>6.2f} "
@@ -135,7 +133,6 @@ def run_parameter_sweep(
             f"{r['gamma']:>7.3f} "
             f"{r['lam']:>6.3f} "
             f"{r['noise']:>6.2f} "
-            f"{r['fd_eps']:>6.2f} "
             f"{r['S_mean']:>7.4f} "
             f"{r['S_min']:>7.4f} "
             f"{r['pass_rate_1_2']*100:>6.0f}%"
@@ -147,7 +144,6 @@ def run_parameter_sweep(
     print(f"  gamma={best_config['gamma']}")
     print(f"  lam={best_config['lam']}")
     print(f"  noise={best_config['noise']}")
-    print(f"  fd_eps={best_config['fd_eps']}")
     print(f"  S_mean={best_config['S_mean']:.4f}")
     print(f"  S_min={best_config['S_min']:.4f}")
     

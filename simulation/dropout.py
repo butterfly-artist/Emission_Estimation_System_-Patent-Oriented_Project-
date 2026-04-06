@@ -78,8 +78,7 @@ def random_dropout_comparison(
     eta: float = 0.1,
     alpha: float = 0.3,
     max_iter: int = 25,
-    random_seed: int = 0,
-    fd_eps: float = 0.01
+    random_seed: int = 0
 ) -> dict:
     """Monte Carlo dropout test removing a random fraction of stations."""
     rng = np.random.default_rng(random_seed)
@@ -104,8 +103,7 @@ def random_dropout_comparison(
         
         result = adaptive_loop(
             H_r, y_r, x0, c0=c0, lam=lam, gamma=gamma,
-            eta=eta, alpha=alpha, max_iter=max_iter,
-            fd_eps=fd_eps
+            eta=eta, alpha=alpha, max_iter=max_iter
         )
         x_adapt = result['x_adapt']
         
