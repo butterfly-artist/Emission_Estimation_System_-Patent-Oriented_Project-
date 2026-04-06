@@ -20,11 +20,12 @@ from core.residuals import compute_residuals, residual_summary
 logger = get_logger("pipeline")
 
 CANONICAL_PARAMS = {
-    'eta':    0.2,
-    'alpha':  0.3,
-    'gamma':  0.005,
-    'lam':    0.01,
-    'noise':  0.05
+    'eta':      0.2,
+    'alpha':    0.3,
+    'gamma':    0.005,
+    'lam':      0.01,
+    'noise':    0.05,
+    'max_iter': 50
 }
 
 def run_full_pipeline(
@@ -76,7 +77,7 @@ def run_full_pipeline(
             gamma=params['gamma'],
             eta=params['eta'],
             alpha=params['alpha'],
-            max_iter=25
+            max_iter=params.get('max_iter', 50)
         )
     x_adapt = adapt_result['x_adapt']
     corr_adapt = compute_correlation(x_adapt, data['x_true'])
@@ -115,7 +116,7 @@ def run_full_pipeline(
             gamma=params['gamma'],
             eta=params['eta'],
             alpha=params['alpha'],
-            max_iter=20
+            max_iter=params.get('max_iter', 50)
         )
     
     logger.info("  5b: Random 30% dropout (50 trials)")
@@ -130,7 +131,7 @@ def run_full_pipeline(
             gamma=params['gamma'],
             eta=params['eta'],
             alpha=params['alpha'],
-            max_iter=20,
+            max_iter=params.get('max_iter', 50),
             random_seed=42
         )
     
@@ -147,7 +148,7 @@ def run_full_pipeline(
             gamma=params['gamma'],
             eta=params['eta'],
             alpha=params['alpha'],
-            max_iter=20
+            max_iter=params.get('max_iter', 50)
         )
 
     # STEP 6

@@ -18,7 +18,7 @@ def targeted_dropout(
     k_drop: int = 3,
     lam: float = 0.01,
     gamma: float = 0.01,
-    eta: float = 0.1,
+    eta: float = 0.2,
     alpha: float = 0.3,
     max_iter: int = 25
 ) -> dict:
@@ -148,7 +148,7 @@ def cluster_dropout(
     drop_zone: str = "road",
     lam: float = 0.01,
     gamma: float = 0.01,
-    eta: float = 0.1,
+    eta: float = 0.2,
     alpha: float = 0.3,
     max_iter: int = 25
 ) -> dict:
