@@ -1,0 +1,11 @@
+country,state,city,station_name,timestamp,lat,lon,pollutant,min_value,max_value,value,fetch_time
+India,Telangana,Hyderabad,"Central University, Hyderabad - TSPCB",08-04-2026 21:00:00,17.460103,78.334361,NO2,14,72,32.0,2026-04-08T22:23:44.594068
+India,Telangana,Hyderabad,"Sanathnagar, Hyderabad - TSPCB",08-04-2026 21:00:00,17.4559458,78.4332152,NO2,7,40,25.0,2026-04-08T22:23:44.594068
+India,Telangana,Hyderabad,"Kompally Municipal Office, Hyderabad - TSPCB",08-04-2026 21:00:00,17.544899,78.486949,NO2,13,17,16.0,2026-04-08T22:23:44.594068
+India,Telangana,Hyderabad,"New Malakpet, Hyderabad - TSPCB",08-04-2026 21:00:00,17.37206,78.50864,NO2,12,15,13.0,2026-04-08T22:23:44.594068
+India,Telangana,Hyderabad,"Nacharam_TSIIC IALA, Hyderabad - TSPCB",08-04-2026 21:00:00,17.429398,78.569354,NO2,12,17,16.0,2026-04-08T22:23:44.594068
+India,Telangana,Hyderabad,"ECIL Kapra, Hyderabad - TSPCB",08-04-2026 21:00:00,17.470431,78.566959,NO2,25,63,37.0,2026-04-08T22:23:44.594068
+India,Telangana,Hyderabad,"Ramachandrapuram, Hyderabad - TSPCB",08-04-2026 21:00:00,17.528544,78.286195,NO2,15,18,17.0,2026-04-08T22:23:44.594068
+India,Telangana,Hyderabad,"Somajiguda, Hyderabad - TSPCB",08-04-2026 21:00:00,17.417094,78.457437,NO2,16,17,17.0,2026-04-08T22:23:44.594068
+India,Telangana,Hyderabad,"ICRISAT Patancheru, Hyderabad - TSPCB",08-04-2026 21:00:00,17.5184,78.278777,NO2,1,12,5.0,2026-04-08T22:23:44.594068
+India,Telangana,Hyderabad,"IITH Kandi, Hyderabad - TSPCB",08-04-2026 21:00:00,17.585705,78.126199,NO2,13,16,14.0,2026-04-08T22:23:44.594068
