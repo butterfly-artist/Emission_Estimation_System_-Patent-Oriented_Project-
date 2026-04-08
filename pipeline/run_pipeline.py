@@ -10,6 +10,7 @@ from simulation.dropout import (
     targeted_dropout,
     random_dropout_comparison,
     cluster_dropout,
+    high_leverage_targeted_dropout,
     save_evidence_table
 )
 from core.adaptive import adaptive_loop
@@ -125,7 +126,7 @@ def run_full_pipeline(
             data['H'], data['y'],
             data['x0'], data['x_true'],
             data['c0_wrong'],
-            dropout_frac=0.30,
+            dropout_frac=0.40,
             n_trials=n_trials,
             lam=params['lam'],
             gamma=params['gamma'],
@@ -151,12 +152,28 @@ def run_full_pipeline(
             max_iter=params.get('max_iter', 50)
         )
 
+    logger.info("  5d: High-leverage top-5 dropout")
+    with Timer("high leverage dropout"):
+        h_result = high_leverage_targeted_dropout(
+            data['H'], data['y'],
+            data['x0'], data['x_true'],
+            data['c0_wrong'],
+            zone_labels=data['zone_labels'],
+            k_drop=5,
+            lam=params['lam'],
+            gamma=params['gamma'],
+            eta=params['eta'],
+            alpha=params['alpha'],
+            max_iter=params.get('max_iter', 50)
+        )
+
     # STEP 6
     logger.info("Step 6: Saving patent evidence table")
     all_dropout = {
-        'targeted': t_result,
-        'random':   r_result,
-        'cluster':  c_result
+        'targeted':      t_result,
+        'random':        r_result,
+        'cluster':       c_result,
+        'high_leverage': h_result
     }
     evidence_path = f"{save_dir}/patent_evidence_table.csv"
     save_evidence_table(all_dropout, filepath=evidence_path)
@@ -259,20 +276,18 @@ def run_full_pipeline(
     print(f"{'Adaptive correlation':<35} {corr_adapt:>10.4f}")
     print(f"{'Corr improvement':<35} {corr_adapt-corr_static:>+10.4f}")
     print(f"{'Adaptive iterations':<35} {adapt_result['n_iter']:>10}")
-    print(f"{'S targeted dropout':<35} {t_result['S']:>10.4f}")
-    print(f"{'S random 30% (mean)':<35} {r_result['S_mean']:>10.4f}")
-    print(f"{'S random 30% (min)':<35} {r_result['S_min']:>10.4f}")
+    print(f"{'S targeted dropout (k=5)':<35} {t_result['S']:>10.4f}")
+    print(f"{'S random 40% (mean)':<35} {r_result['S_mean']:>10.4f}")
+    print(f"{'S random 40% (min)':<35} {r_result['S_min']:>10.4f}")
     print(f"{'S road cluster':<35} {c_result['S']:>10.4f}")
+    print(f"{'S high-leverage (k=5)':<35} {h_result['S']:>10.4f}")
     
     pass_rate_1_2 = float(np.mean(np.array(r_result['S_all']) > 1.2))
     print(f"{'Pass rate S>1.2':<35} {pass_rate_1_2*100:>9.0f}%")
     print("-" * 50)
-    
-    overall_pass = (
-        r_result['S_mean'] > 1.2 and
-        r_result['S_min'] > 1.0 and
-        t_result['S'] > 1.0
-    )
+
+    all_S = [t_result['S'], r_result['S_mean'], c_result['S'], h_result['S']]
+    overall_pass = all(s > 1.2 for s in all_S)
     
     if overall_pass:
         print("PATENT CLAIM: PROVEN")

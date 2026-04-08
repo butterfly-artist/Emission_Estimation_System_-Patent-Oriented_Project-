@@ -1,0 +1,2 @@
+scenario,n_stations,S_mean,S_min,S_max,pass_rate,var_reduction,loss_reduction,n_iter,converged,pass_1_0,pass_1_2
+Real CPCB Hyderabad NO2,8,1.0032949883010263,0.9990747857493253,1.0063680443038656,0.9333333333333333,6.561130644969107e-05,4.845051222377112e-05,25,False,True,False

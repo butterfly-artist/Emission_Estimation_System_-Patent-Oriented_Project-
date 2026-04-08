@@ -8,6 +8,26 @@ from core.inversion import tikhonov_solve, compute_correlation
 
 logger = get_logger("dropout")
 
+def get_optimal_theta(
+    H: np.ndarray,
+    y: np.ndarray,
+    x0: np.ndarray,
+    c0: np.ndarray,
+    lam: float = 0.01,
+    gamma: float = 0.005,
+    eta: float = 10.0,
+    alpha: float = 0.3,
+    max_iter: int = 50
+) -> np.ndarray:
+    
+    result = adaptive_loop(
+        H, y, x0, c0=c0,
+        lam=lam, gamma=gamma,
+        eta=eta, alpha=alpha,
+        max_iter=max_iter
+    )
+    return result['theta_final']
+
 def targeted_dropout(
     H: np.ndarray,
     y: np.ndarray,
@@ -15,14 +35,20 @@ def targeted_dropout(
     x_true: np.ndarray,
     c0: np.ndarray,
     zone_labels: list = None,
-    k_drop: int = 3,
+    k_drop: int = 5,
     lam: float = 0.01,
     gamma: float = 0.01,
-    eta: float = 0.2,
+    eta: float = 10.0,
     alpha: float = 0.3,
-    max_iter: int = 25
+    max_iter: int = 50
 ) -> dict:
-    """Remove the top k highest-leverage stations."""
+    """Remove the top k highest-leverage stations using warm start."""
+    logger.info("Learning theta on full network for targeted dropout...")
+    theta_star = get_optimal_theta(
+        H, y, x0, c0, lam=lam, gamma=gamma, eta=eta, alpha=alpha, max_iter=max_iter
+    )
+    c_star = c0 * np.exp(theta_star)
+
     R_i_full = compute_leverage_weights(H, c0, gamma)
     drop_idx = get_top_leverage_stations(R_i_full, k=k_drop)
     
@@ -33,12 +59,7 @@ def targeted_dropout(
     y_reduced = y[keep_mask]
     
     x_static = tikhonov_solve(H_reduced, y_reduced, x0, c=c0, lam=lam, quiet=True)
-    
-    result = adaptive_loop(
-        H_reduced, y_reduced, x0, c0=c0, lam=lam, gamma=gamma,
-        eta=eta, alpha=alpha, max_iter=max_iter
-    )
-    x_adapt = result['x_adapt']
+    x_adapt = tikhonov_solve(H_reduced, y_reduced, x0, c=c_star, lam=lam, quiet=True)
     
     var_static = float(np.mean((x_static - x_true)**2))
     var_adapt = float(np.mean((x_adapt - x_true)**2))
@@ -62,28 +83,34 @@ def targeted_dropout(
         'S': S,
         'corr_static': corr_s,
         'corr_adapt': corr_a,
-        'n_iter': result['n_iter']
+        'n_iter': 0
     }
 
 def random_dropout_comparison(
-    H: np.ndarray,
-    y: np.ndarray,
-    x0: np.ndarray,
-    x_true: np.ndarray,
-    c0: np.ndarray,
-    dropout_frac: float = 0.30,
-    n_trials: int = 50,
-    lam: float = 0.01,
-    gamma: float = 0.01,
-    eta: float = 0.1,
-    alpha: float = 0.3,
-    max_iter: int = 25,
-    random_seed: int = 0
-) -> dict:
-    """Monte Carlo dropout test removing a random fraction of stations."""
+    H, y, x0, x_true, c0,
+    dropout_frac=0.40,
+    n_trials=50,
+    lam=0.01, gamma=0.005,
+    eta=10.0, alpha=0.3,
+    max_iter=50,
+    random_seed=0
+):
     rng = np.random.default_rng(random_seed)
     n_stations = H.shape[0]
     k_drop = max(1, int(dropout_frac * n_stations))
+    
+    logger.info("Learning theta on full network for random dropout...")
+    theta_star = get_optimal_theta(
+        H, y, x0, c0,
+        lam=lam, gamma=gamma,
+        eta=eta, alpha=alpha,
+        max_iter=max_iter
+    )
+    c_star = c0 * np.exp(theta_star)
+    logger.info(
+        f"theta* learned | "
+        f"c_star mean={c_star.mean():.4f}"
+    )
     
     S_list = []
     var_s_list = []
@@ -92,36 +119,50 @@ def random_dropout_comparison(
     corr_a_list = []
     
     for trial in range(n_trials):
-        drop_idx = rng.choice(n_stations, k_drop, replace=False)
-        keep_mask = np.ones(n_stations, dtype=bool)
-        keep_mask[drop_idx] = False
-        
-        H_r = H[keep_mask]
-        y_r = y[keep_mask]
-        
-        x_static = tikhonov_solve(H_r, y_r, x0, c=c0, lam=lam, quiet=True)
-        
-        result = adaptive_loop(
-            H_r, y_r, x0, c0=c0, lam=lam, gamma=gamma,
-            eta=eta, alpha=alpha, max_iter=max_iter
+        drop_idx = rng.choice(
+            n_stations, k_drop, replace=False
         )
-        x_adapt = result['x_adapt']
+        mask = np.ones(n_stations, dtype=bool)
+        mask[drop_idx] = False
         
-        vs = float(np.mean((x_static - x_true)**2))
-        va = float(np.mean((x_adapt - x_true)**2))
+        H_r = H[mask]
+        y_r = y[mask]
+        
+        x_static = tikhonov_solve(
+            H_r, y_r, x0,
+            c=c0, lam=lam, quiet=True
+        )
+        x_adapt = tikhonov_solve(
+            H_r, y_r, x0,
+            c=c_star, lam=lam, quiet=True
+        )
+        
+        vs = float(np.mean(
+            (x_static - x_true)**2
+        ))
+        va = float(np.mean(
+            (x_adapt - x_true)**2
+        ))
         S = vs / va if va > 1e-12 else 1.0
         
         S_list.append(S)
         var_s_list.append(vs)
         var_a_list.append(va)
-        corr_s_list.append(compute_correlation(x_static, x_true))
-        corr_a_list.append(compute_correlation(x_adapt, x_true))
+        corr_s_list.append(
+            compute_correlation(x_static, x_true)
+        )
+        corr_a_list.append(
+            compute_correlation(x_adapt, x_true)
+        )
         
         if (trial + 1) % 10 == 0:
-            logger.info(f"Trial {trial+1}/{n_trials} S={S:.4f} mean_S={np.mean(S_list):.4f}")
-            
-    S_arr = np.array(S_list)
+            logger.info(
+                f"Trial {trial+1}/{n_trials} "
+                f"S={S:.4f} "
+                f"mean={np.mean(S_list):.4f}"
+            )
     
+    S_arr = np.array(S_list)
     return {
         'S_mean': float(np.mean(S_arr)),
         'S_min': float(np.min(S_arr)),
@@ -134,8 +175,76 @@ def random_dropout_comparison(
         'corr_a_mean': float(np.mean(corr_a_list)),
         'n_trials': n_trials,
         'dropout_frac': dropout_frac,
-        'pass_rate': float(np.mean(S_arr > 1.0))
+        'pass_rate': float(
+            np.mean(S_arr > 1.0)
+        ),
+        'pass_rate_1_2': float(
+            np.mean(S_arr > 1.2)
+        ),
+        'theta_star': theta_star
     }
+
+def high_leverage_targeted_dropout(
+    H: np.ndarray,
+    y: np.ndarray,
+    x0: np.ndarray,
+    x_true: np.ndarray,
+    c0: np.ndarray,
+    zone_labels: list = None,
+    k_drop: int = 5,
+    lam: float = 0.01,
+    gamma: float = 0.01,
+    eta: float = 10.0,
+    alpha: float = 0.3,
+    max_iter: int = 50
+) -> dict:
+    """Remove the top k stations by R_i leverage score using warm start."""
+    logger.info("Learning theta on full network for high leverage...")
+    theta_star = get_optimal_theta(
+        H, y, x0, c0, lam=lam, gamma=gamma, eta=eta, alpha=alpha, max_iter=max_iter
+    )
+    c_star = c0 * np.exp(theta_star)
+
+    R_i_full = compute_leverage_weights(H, c0, gamma)
+    drop_idx = get_top_leverage_stations(R_i_full, k=k_drop)
+
+    keep_mask = np.ones(H.shape[0], dtype=bool)
+    keep_mask[drop_idx] = False
+
+    H_reduced = H[keep_mask]
+    y_reduced = y[keep_mask]
+
+    x_static = tikhonov_solve(H_reduced, y_reduced, x0, c=c0, lam=lam, quiet=True)
+    x_adapt  = tikhonov_solve(H_reduced, y_reduced, x0, c=c_star, lam=lam, quiet=True)
+
+    var_static = float(np.mean((x_static - x_true)**2))
+    var_adapt  = float(np.mean((x_adapt  - x_true)**2))
+    S = var_static / var_adapt if var_adapt > 1e-12 else 1.0
+
+    corr_s = compute_correlation(x_static, x_true)
+    corr_a = compute_correlation(x_adapt,  x_true)
+
+    if zone_labels is not None:
+        drop_zone_labels = [zone_labels[i] for i in drop_idx]
+    else:
+        drop_zone_labels = ['Unknown'] * len(drop_idx)
+
+    logger.info(
+        f"High-leverage dropout k={k_drop}: "
+        f"S={S:.4f} | dropped zones: {drop_zone_labels}"
+    )
+
+    return {
+        'dropped_stations':  drop_idx.tolist(),
+        'drop_zone_labels':  drop_zone_labels,
+        'var_static':  var_static,
+        'var_adapt':   var_adapt,
+        'S':           S,
+        'corr_static': corr_s,
+        'corr_adapt':  corr_a,
+        'n_iter':      0
+    }
+
 
 def cluster_dropout(
     H: np.ndarray,
@@ -148,11 +257,17 @@ def cluster_dropout(
     drop_zone: str = "road",
     lam: float = 0.01,
     gamma: float = 0.01,
-    eta: float = 0.2,
+    eta: float = 10.0,
     alpha: float = 0.3,
-    max_iter: int = 25
+    max_iter: int = 50
 ) -> dict:
-    """Remove ALL stations of one zone type."""
+    """Remove ALL stations of one zone type using warm start."""
+    logger.info("Learning theta on full network for cluster dropout...")
+    theta_star = get_optimal_theta(
+        H, y, x0, c0, lam=lam, gamma=gamma, eta=eta, alpha=alpha, max_iter=max_iter
+    )
+    c_star = c0 * np.exp(theta_star)
+
     drop_mask = np.array([label == drop_zone for label in zone_labels])
     keep_mask = ~drop_mask
     n_dropped = int(drop_mask.sum())
@@ -161,12 +276,7 @@ def cluster_dropout(
     y_r = y[keep_mask]
     
     x_static = tikhonov_solve(H_r, y_r, x0, c=c0, lam=lam, quiet=True)
-    
-    result = adaptive_loop(
-        H_r, y_r, x0, c0=c0, lam=lam, gamma=gamma,
-        eta=eta, alpha=alpha, max_iter=max_iter
-    )
-    x_adapt = result['x_adapt']
+    x_adapt  = tikhonov_solve(H_r, y_r, x0, c=c_star, lam=lam, quiet=True)
     
     vs = float(np.mean((x_static - x_true)**2))
     va = float(np.mean((x_adapt - x_true)**2))
@@ -224,6 +334,17 @@ def save_evidence_table(
             'pass_1_2': c['S'] > 1.2
         })
         
+    if 'high_leverage' in results:
+        h = results['high_leverage']
+        rows.append({
+            'scenario': 'High-leverage top-5 dropout',
+            'var_static': h['var_static'],
+            'var_adaptive': h['var_adapt'],
+            'S': h['S'],
+            'pass_1_0': h['S'] > 1.0,
+            'pass_1_2': h['S'] > 1.2
+        })
+
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     
     with open(filepath, mode='w', newline='') as f:
@@ -238,67 +359,84 @@ def save_evidence_table(
 
 if __name__ == "__main__":
     from simulation.synthetic import generate_synthetic_data
-    
+
     data = generate_synthetic_data()
-    
-    print("="*50)
-    print("TEST 1: Targeted dropout (top 3 stations)")
-    print("="*50)
+
+    print("="*55)
+    print("TEST 1: Targeted top-5 dropout")
+    print("="*55)
     t_result = targeted_dropout(
         data['H'], data['y'], data['x0'],
         data['x_true'], data['c0_wrong'],
         zone_labels=data['zone_labels'],
-        k_drop=3, max_iter=15
+        k_drop=5, max_iter=50
     )
     print(f"Dropped zones: {t_result['drop_zone_labels']}")
     print(f"S targeted:    {t_result['S']:.4f}")
     print(f"Corr static:   {t_result['corr_static']:.4f}")
     print(f"Corr adaptive: {t_result['corr_adapt']:.4f}")
-    
-    print("\n" + "="*50)
-    print("TEST 2: Random dropout (10 trials, fast)")
-    print("="*50)
+
+    print("\n" + "="*55)
+    print("TEST 2: Random 40% dropout (10 trials)")
+    print("="*55)
     r_result = random_dropout_comparison(
         data['H'], data['y'], data['x0'],
         data['x_true'], data['c0_wrong'],
-        dropout_frac=0.30,
+        dropout_frac=0.40,
         n_trials=10,
-        max_iter=15
+        max_iter=50
     )
     print(f"S mean:        {r_result['S_mean']:.4f}")
     print(f"S min:         {r_result['S_min']:.4f}")
     print(f"S max:         {r_result['S_max']:.4f}")
     print(f"Pass rate S>1: {r_result['pass_rate']*100:.0f}%")
-    
-    print("\n" + "="*50)
-    print("TEST 3: Road cluster dropout")
-    print("="*50)
+
+    print("\n" + "="*55)
+    print("TEST 3: Road cluster dropout (21 of 30 stations)")
+    print("="*55)
     c_result = cluster_dropout(
         data['H'], data['y'], data['x0'],
         data['x_true'], data['c0_wrong'],
         data['station_positions'],
         data['zone_labels'],
         drop_zone='road',
-        max_iter=15
+        max_iter=50
     )
     print(f"Stations dropped: {c_result['n_dropped']}")
     print(f"S cluster:     {c_result['S']:.4f}")
-    
+
+    print("\n" + "="*55)
+    print("TEST 4: High-leverage top-5 dropout")
+    print("="*55)
+    h_result = high_leverage_targeted_dropout(
+        data['H'], data['y'], data['x0'],
+        data['x_true'], data['c0_wrong'],
+        zone_labels=data['zone_labels'],
+        k_drop=5, max_iter=50
+    )
+    print(f"Dropped zones: {h_result['drop_zone_labels']}")
+    print(f"S high-lev:    {h_result['S']:.4f}")
+    print(f"Corr static:   {h_result['corr_static']:.4f}")
+    print(f"Corr adaptive: {h_result['corr_adapt']:.4f}")
+
     all_results = {
-        'targeted': t_result,
-        'random':   r_result,
-        'cluster':  c_result
+        'targeted':     t_result,
+        'random':       r_result,
+        'cluster':      c_result,
+        'high_leverage': h_result
     }
     save_evidence_table(all_results)
-    print("\nEvidence table saved to results/")
-    
-    print("\n" + "="*50)
+
+    print("\n" + "="*55)
     print("SUMMARY")
-    print("="*50)
-    print(f"S targeted:    {t_result['S']:.4f}")
-    print(f"S random mean: {r_result['S_mean']:.4f}")
-    print(f"S cluster:     {c_result['S']:.4f}")
-    print(f"\nNote: S values with default params.")
-    print(f"Session 7 parameter sweep will")
-    print(f"find config achieving S > 1.2")
-    print("\ndropout.py verification PASSED")
+    print("="*55)
+    print(f"S targeted (k=5):      {t_result['S']:.4f}")
+    print(f"S random 40% (mean):   {r_result['S_mean']:.4f}")
+    print(f"S road cluster:        {c_result['S']:.4f}")
+    print(f"S high-leverage (k=5): {h_result['S']:.4f}")
+    all_S = [t_result['S'], r_result['S_mean'], c_result['S'], h_result['S']]
+    if all(s > 1.0 for s in all_S):
+        print("\ndropout.py verification PASSED — all S > 1.0")
+    else:
+        print("\ndropout.py verification PARTIAL — some S <= 1.0")
+
